@@ -57,8 +57,16 @@ public class MainActivity extends AppCompatActivity {
                 int passphraseLength = passphrase.length();
                 char[] passphraseChar = new char[passphraseLength];
                 passphrase.getText().getChars(0, passphraseLength, passphraseChar, 0);
-                String ciphertextData = doEncryptionAesGcmPbkdf2(passphraseChar, plaintext.getText().toString().getBytes(StandardCharsets.UTF_8));
-                ciphertext.setText(ciphertextData);
+                // do not run the encryption on main gui thread as it may block
+                //String ciphertextData = doEncryptionAesGcmPbkdf2(passphraseChar, plaintext.getText().toString().getBytes(StandardCharsets.UTF_8));
+                //ciphertext.setText(ciphertextData);
+                // run the encryption in a different thread instead
+                Thread thread = new Thread(){
+                    public void run(){
+                        doAesEncryption(passphraseChar, plaintext.getText().toString().getBytes(StandardCharsets.UTF_8));
+                    }
+                };
+                thread.start();
             }
         });
 
@@ -69,14 +77,45 @@ public class MainActivity extends AppCompatActivity {
                 int passphraseLength = passphrase.length();
                 char[] passphraseChar = new char[passphraseLength];
                 passphrase.getText().getChars(0, passphraseLength, passphraseChar, 0);
-                String decryptedtextData = doDecryptionAesGcmPbkdf2(passphraseChar, ciphertext.getText().toString());
-                decryptedtext.setText(decryptedtextData);
+                // do not run the decryption on main gui thread as it may block
+                // String decryptedtextData = doDecryptionAesGcmPbkdf2(passphraseChar, ciphertext.getText().toString());
+                // decryptedtext.setText(decryptedtextData);
+                // run the encryption in a different thread instead
+                Thread thread = new Thread(){
+                    public void run(){
+                        doAesDecryption(passphraseChar, ciphertext.getText().toString());
+                    }
+                };
+                thread.start();
             }
         });
     }
 
+    // you need to use this method to write to the textview from a background thread
+    // source: https://stackoverflow.com/a/25488292/8166854
+    private void setText(final EditText editText,final String value){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                editText.setText(value);
+            }
+        });
+    }
+
+    // this method is running in a thread, so don't update the ui directly
+    private void doAesEncryption(char[] passphraseChar, byte[] plaintextByte) {
+        String ciphertextData = doEncryptionAesGcmPbkdf2(passphraseChar, plaintextByte);
+        setText(ciphertext, ciphertextData);
+    }
+
+    // this method is running in a thread, so don't update the ui directly
+    private void doAesDecryption(char[] passphraseChar, String ciphertextBase64) {
+        String decryptedtextData = doDecryptionAesGcmPbkdf2(passphraseChar, ciphertextBase64);
+        setText(decryptedtext, decryptedtextData);
+    }
+
     private String doEncryptionAesGcmPbkdf2(char[] passphraseChar, byte[] plaintextByte) {
-        final int PBKDF2_ITERATIONS = 10000;
+        final int PBKDF2_ITERATIONS = 10000; // fixed as minimum
         final String TRANSFORMATION_GCM = "AES/GCM/NoPadding";
         int saltLength = 32;
         int nonceLength = 12;
@@ -143,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String doDecryptionAesGcmPbkdf2(char[] passphraseChar, String ciphertextBase64) {
-        final int PBKDF2_ITERATIONS = 10000;
+        final int PBKDF2_ITERATIONS = 10000; // fixed as minimum
         final String TRANSFORMATION_GCM = "AES/GCM/NoPadding";
         int saltLength = 32;
         int nonceLength = 12;
@@ -198,13 +237,13 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
             return "";
         }
-        return new String(decryptedtextByte);
+        return new String(decryptedtextByte, StandardCharsets.UTF_8);
     }
 
     // https://stackoverflow.com/a/9670279/8166854
     byte[] charArrayToByteArray(char[] chars) {
         CharBuffer charBuffer = CharBuffer.wrap(chars);
-        ByteBuffer byteBuffer = Charset.forName("UTF-8").encode(charBuffer);
+        ByteBuffer byteBuffer = StandardCharsets.UTF_8.encode(charBuffer);
         byte[] bytes = Arrays.copyOfRange(byteBuffer.array(),
                 byteBuffer.position(), byteBuffer.limit());
         Arrays.fill(chars, '\u0000'); // clear sensitive data
