@@ -15,3 +15,6 @@ To avoid an UI blocking the en- and decryption are running in different threads.
 
 The passphrase could be of any length but you should define a minimum length AND some additional passphrase rules (like using number, lowercase and capital letters and special characters).
 
+**App facts:** The app was generated on Android Studio Chipmunk 2021.2.1 with Build #AI-212.5712.43.2112.8512546,
+built on April 28, 2022. Runtime version: 11.0.12+0-b1504.28-7817840 aarch64, VM: OpenJDK 64-Bit Server.
+The app is compiled on Android SDK 32 ("12") and is runnable on Android SDK 23+.
