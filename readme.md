@@ -1,4 +1,4 @@
-# AES-256 encryption in GCM-mode  with PBKDF2 key derivation using hash algorithm Hmac256
+# AES-256 encryption in GCM-mode  with PBKDF2 key derivation using hash algorithm HmacSha256
 
 This app is demonstrating the encryption of strings or byte arrays using the **AES algorithm**.
 
@@ -6,7 +6,7 @@ The mode is **GCM** as it provides a built-in tag that checks for any altering o
 
 The 32 bytes long encryption key is derived from a passphrase using the **PBKDF2 algorithm** ("Password based key derivation function").
 
-The hashing algorithm is **Hmac256** that is available on Android SDK 26+. As this app is designed for 
+The hashing algorithm is **HmacSha256** that is available on Android SDK 26+. As this app is designed for 
 SDK >= 23 I provide a PBKDF2 class that is used if the Android device is running on SDK's 23 - 25.
 
 I have fixed the PBKDF2 iterations to 10000 - a higher value would be better but that could lengthen the key derivation on older devices.
