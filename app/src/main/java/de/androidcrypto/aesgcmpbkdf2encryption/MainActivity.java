@@ -186,7 +186,12 @@ public class MainActivity extends AppCompatActivity {
         int saltLength = 32;
         int nonceLength = 12;
         // split the complete ciphertext into salt, nonce and ciphertext
-        byte[] ciphertextComplete = base64Decoding(ciphertextBase64);
+        byte[] ciphertextComplete = new byte[0];
+        try {
+            ciphertextComplete = base64Decoding(ciphertextBase64);
+        } catch (IllegalArgumentException exception) {
+            return "ERROR: The input data (ciphertext) was corrupted.";
+        }
         ByteBuffer bb = ByteBuffer.wrap(ciphertextComplete);
         byte[] salt = new byte[saltLength];
         byte[] nonce = new byte[nonceLength];
@@ -234,7 +239,7 @@ public class MainActivity extends AppCompatActivity {
             decryptedtextByte = cipher.doFinal(ciphertext);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | InvalidKeyException | BadPaddingException | IllegalBlockSizeException e) {
             e.printStackTrace();
-            return "";
+            return "ERROR: The passphrase may be wrong or the ciphertext is corrupted";
         }
         return new String(decryptedtextByte, StandardCharsets.UTF_8);
     }
