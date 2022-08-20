@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="de.androidcrypto.aesgcmpbkdf2encryption">
+    package="de.androidcrypto.aesgcmpbkdf2fileencryption">
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
     <application
         android:allowBackup="true"
@@ -11,10 +13,10 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AesGcmPbkdf2Encryption"
+        android:theme="@style/Theme.AesGcmPbkdf2FileEncryption"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+            android:name="de.androidcrypto.aesgcmpbkdf2fileencryption.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

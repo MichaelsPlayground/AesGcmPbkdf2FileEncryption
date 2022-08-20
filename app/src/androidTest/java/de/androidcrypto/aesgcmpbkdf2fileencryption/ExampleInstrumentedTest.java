@@ -1,4 +1,4 @@
-package de.androidcrypto.aesgcmpbkdf2encryption;
+package de.androidcrypto.aesgcmpbkdf2fileencryption;
 
 import android.content.Context;
 

@@ -1,17 +1,34 @@
-package de.androidcrypto.aesgcmpbkdf2encryption;
+package de.androidcrypto.aesgcmpbkdf2fileencryption;
 
+import android.Manifest;
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
@@ -41,11 +58,16 @@ public class MainActivity extends AppCompatActivity {
     String plaintextString;
     String ciphertextBase64;
     byte[] dataToSave;
+    private static final int REQUEST_PERMISSION_WRITE_EXTERNAL_STORAGE = 100;
+    Context contextSave;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        Toolbar myToolbar = (Toolbar) findViewById(R.id.main_toolbar);
+        setSupportActionBar(myToolbar);
+        contextSave = getApplicationContext();
         plaintext = findViewById(R.id.etPlaintext);
         passphrase = findViewById(R.id.etPassphrase);
         ciphertext = findViewById(R.id.etCiphertext);
@@ -113,8 +135,9 @@ public class MainActivity extends AppCompatActivity {
 
     // this method is running in a thread, so don't update the ui directly
     private void doAesEncryption(char[] passphraseChar, byte[] plaintextByte) {
-        String ciphertextData = base64Encoding(doEncryptionAesGcmPbkdf2(passphraseChar, plaintextByte));
-        setText(ciphertext, ciphertextData);
+        dataToSave = doEncryptionAesGcmPbkdf2(passphraseChar, plaintextByte);
+        ciphertextBase64 = base64Encoding(dataToSave);
+        setText(ciphertext, ciphertextBase64);
     }
 
     // this method is running in a thread, so don't update the ui directly
@@ -396,5 +419,148 @@ public class MainActivity extends AppCompatActivity {
 
     private static byte[] base64Decoding(String input) {
         return Base64.decode(input, Base64.NO_WRAP);
+    }
+
+    private void writeToUiToast(String message) {
+        runOnUiThread(() -> {
+            Toast.makeText(getApplicationContext(),
+                    message,
+                    Toast.LENGTH_SHORT).show();
+        });
+    }
+
+// section for main menu
+
+    private void exportDumpMail() {
+        if (dataToSave == null) {
+            writeToUiToast("Encrypt some data first before sending emails :-)");
+            return;
+        }
+        String subject = "Encryption AES-256 GCM PBKDF2";
+        String body = ciphertextBase64;
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_SUBJECT, subject);
+        intent.putExtra(Intent.EXTRA_TEXT, body);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivity(intent);
+        }
+    }
+
+    private void exportDumpFile() {
+        if (dataToSave == null) {
+            writeToUiToast("Encrypt some data first before writing files :-)");
+            return;
+        }
+        verifyPermissionsWriteString();
+    }
+
+    // section external storage permission check
+    private void verifyPermissionsWriteString() {
+        String[] permissions = {Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE};
+        if (ContextCompat.checkSelfPermission(this.getApplicationContext(),
+                permissions[0]) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this.getApplicationContext(),
+                permissions[1]) == PackageManager.PERMISSION_GRANTED) {
+            writeStringToExternalSharedStorage();
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    permissions,
+                    REQUEST_PERMISSION_WRITE_EXTERNAL_STORAGE);
+        }
+    }
+
+    private void writeStringToExternalSharedStorage() {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        // Optionally, specify a URI for the file that should appear in the
+        // system file picker when it loads.
+        //boolean pickerInitialUri = false;
+        //intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri);
+        // get filename from edittext
+        String filename = "test" + ".txt";
+        // sanity check
+        if (filename.equals("")) {
+            writeToUiToast("scan a tag before writing the content to a file :-)");
+            return;
+        }
+        intent.putExtra(Intent.EXTRA_TITLE, filename);
+        fileSaverActivityResultLauncher.launch(intent);
+    }
+
+    ActivityResultLauncher<Intent> fileSaverActivityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        // There are no request codes
+                        Intent resultData = result.getData();
+                        // The result data contains a URI for the document or directory that
+                        // the user selected.
+                        Uri uri = null;
+                        if (resultData != null) {
+                            uri = resultData.getData();
+                            // Perform operations on the document using its URI.
+                            // get file content from edittext
+                            String fileContent = ciphertextBase64;
+                            try {
+                                writeTextToUri(uri, fileContent);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                                writeToUiToast("Error on writing data: " + e);
+                                return;
+                            }
+                            writeToUiToast("file written to external shared storage: " + uri.toString());
+                        }
+                    }
+                }
+            });
+
+    private void writeTextToUri(Uri uri, String data) throws IOException {
+        try {
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(contextSave.getContentResolver().openOutputStream(uri));
+            outputStreamWriter.write(data);
+            outputStreamWriter.close();
+        } catch (IOException e) {
+            System.out.println("Exception File write failed: " + e.toString());
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_activity_main, menu);
+
+        MenuItem mExportMail = menu.findItem(R.id.action_export_mail);
+        mExportMail.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                exportDumpMail();
+                return false;
+            }
+        });
+
+        MenuItem mExportFile = menu.findItem(R.id.action_export_file);
+        mExportFile.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                exportDumpFile();
+                return false;
+            }
+        });
+
+        MenuItem mClearDump = menu.findItem(R.id.action_clear_dump);
+        mClearDump.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                //dumpExportString = "";
+                //readResult.setText("read result");
+                return false;
+            }
+        });
+
+        return super.onCreateOptionsMenu(menu);
     }
 }
