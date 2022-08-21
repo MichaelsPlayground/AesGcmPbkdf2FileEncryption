@@ -26,7 +26,9 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
@@ -527,6 +529,13 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             System.out.println("Exception File write failed: " + e.toString());
         }
+    }
+
+    private void writeByteToUri(Uri uri, byte[] data) throws IOException {
+
+
+
+
     }
 
     @Override
